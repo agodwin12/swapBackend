@@ -3,9 +3,17 @@ const { Model, DataTypes } = require("sequelize");
 module.exports = (sequelize) => {
     class MotosValide extends Model {
         static associate(models) {
+            // ✅ Association with AssociationUserMoto
             MotosValide.hasMany(models.AssociationUserMoto, {
                 foreignKey: "moto_valide_id",
                 as: "userAssociations",
+                onDelete: "CASCADE",
+            });
+
+            // ✅ Association with LeasePayment
+            MotosValide.hasMany(models.LeasePayment, {
+                foreignKey: "id_moto", // Reference id_moto in lease_payments
+                as: "leasePayments",
                 onDelete: "CASCADE",
             });
         }
@@ -23,40 +31,34 @@ module.exports = (sequelize) => {
                 allowNull: false,
                 unique: true,
             },
-            marque: {
+            vin: {
                 type: DataTypes.STRING,
                 allowNull: false,
             },
-            modele: {
+            model: {
                 type: DataTypes.STRING,
                 allowNull: false,
             },
-            statut: {
-                type: DataTypes.ENUM("active", "inactive"),
-                allowNull: false,
-                defaultValue: "active",
-            },
-            createdAt: {
+
+            created_at: {
                 type: DataTypes.DATE,
                 allowNull: false,
                 defaultValue: DataTypes.NOW,
             },
-            updatedAt: {
+            updated_at: {
                 type: DataTypes.DATE,
                 allowNull: false,
                 defaultValue: DataTypes.NOW,
             },
-            deletedAt: {
-                type: DataTypes.DATE,
-                allowNull: true,
-            },
+
         },
         {
             sequelize,
             modelName: "MotosValide",
             tableName: "motos_valides",
             timestamps: true,
-            paranoid: true, // Enable soft deletes
+            underscored: true,
+            paranoid: false, // Enable soft deletes
         }
     );
 

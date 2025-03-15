@@ -23,6 +23,8 @@ db.HistoriqueEntrepot = require("./historique_entrepots")(sequelize, DataTypes);
 db.HistoriqueAgence = require("./historique_agences")(sequelize, DataTypes);
 db.BatteryDistributeur = require("./BatteryDistributeur")(sequelize, DataTypes);
 db.HistoriqueEntrepot = require("./historique_entrepot")(sequelize, DataTypes);
+db.LeasePayment = require('./leasePayment')(sequelize, Sequelize); // Ensure this file exists
+
 
 // ✅ Initialize Model Associations (After Models Are Loaded)
 Object.keys(db).forEach((modelName) => {
@@ -157,6 +159,21 @@ db.HistoriqueAgence.belongsTo(db.Entrepot, {
     as: "linkedEntrepot",
     onDelete: "CASCADE",
 });
+
+// 🔹 LeasePayment -> MotosValide ✅ New Fix
+db.LeasePayment.belongsTo(db.MotosValide, {
+    foreignKey: "id_moto",
+    as: "motoDetails",
+    onDelete: "CASCADE",
+});
+
+// 🔹 LeasePayment -> UsersAgences ✅ New Fix
+db.LeasePayment.belongsTo(db.UsersAgences, {
+    foreignKey: "id_user_agence",
+    as: "agenceDetails",
+    onDelete: "CASCADE",
+});
+
 
 // ✅ Sync all models with the database
 sequelize
