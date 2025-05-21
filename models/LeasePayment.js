@@ -15,7 +15,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         montant_battery: {
             type: DataTypes.DECIMAL(8,2),
-            allowNull: false
+            allowNull: true
         },
         total_lease: {
             type: DataTypes.DECIMAL(8,2),

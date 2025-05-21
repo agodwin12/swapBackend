@@ -11,7 +11,7 @@ exports.saveLeasePayment = async (req, res) => {
         console.log("🔍 [DEBUG] Received Request: POST /api/payments/lease");
         console.log("📥 [REQUEST BODY]:", req.body);
 
-        // 🔹 Fix: Correct field names based on the request body
+        // ✅ Extract request body
         const { id_moto, montant_lease, montant_battery, id_user_agence } = req.body;
 
         console.log("🛠 [VALIDATING DATA]...");
@@ -20,17 +20,22 @@ exports.saveLeasePayment = async (req, res) => {
         console.log(`   ➡️ montant_battery: ${montant_battery}`);
         console.log(`   ➡️ id_user_agence: ${id_user_agence}`);
 
-        // Validate required fields
-        if (!id_moto || !montant_lease || !montant_battery || !id_user_agence) {
+        // ✅ Validate required fields (EXCEPT `montant_battery`)
+        if (!id_moto || !montant_lease || !id_user_agence) {
             console.log("❌ [ERROR] Missing required fields.");
-            return res.status(400).json({ message: "All fields are required." });
+            return res.status(400).json({ message: "id_moto, montant_lease, and id_user_agence are required." });
         }
+
+        // ✅ Convert `montant_battery` properly (allow null)
+        const parsedMontantBattery = montant_battery !== null && montant_battery !== undefined
+            ? parseFloat(montant_battery)
+            : 0;
 
         // 🔹 Step 1: Get `id_moto` from `motos_valides` table
         console.log("🔎 Searching for moto in motos_valides...");
         const moto = await MotosValide.findOne({
-            where: { moto_unique_id: id_moto }, // ✅ Fix: Match the actual request field
-            attributes: ["id"]  // Get the `id` column
+            where: { moto_unique_id: id_moto }, // ✅ Match the actual request field
+            attributes: ["id"]
         });
 
         if (!moto) {
@@ -43,8 +48,8 @@ exports.saveLeasePayment = async (req, res) => {
         // 🔹 Step 2: Get `id_user_agence` from `users_agences` table
         console.log("🔎 Searching for agence in users_agences...");
         const agence = await UserAgence.findOne({
-            where: { user_agence_unique_id: id_user_agence }, // ✅ Fix: Match the actual request field
-            attributes: ["id"]  // Get the `id` column
+            where: { user_agence_unique_id: id_user_agence },
+            attributes: ["id"]
         });
 
         if (!agence) {
@@ -54,19 +59,19 @@ exports.saveLeasePayment = async (req, res) => {
 
         console.log(`✅ [FOUND] Agence ID: ${agence.id}`);
 
-        // 🔹 Step 3: Calculate total lease amount
-        const total_lease = parseFloat(montant_lease) + parseFloat(montant_battery);
+        // 🔹 Step 3: Calculate total lease amount safely
+        const total_lease = parseFloat(montant_lease) + parsedMontantBattery;
         console.log(`✅ [CALCULATED TOTAL LEASE]: ${total_lease}`);
 
-        // 🔹 Step 4: Save to database with correct IDs
+        // 🔹 Step 4: Save to database
         console.log("💾 [SAVING TO DATABASE]...");
         const newLeasePayment = await LeasePayment.create({
-            id_moto: moto.id,  // ✅ Use correct ID from motos_valides
-            montant_lease,
-            montant_battery,
+            id_moto: moto.id,
+            montant_lease: parseFloat(montant_lease),
+            montant_battery: parsedMontantBattery, // ✅ Allow null or 0
             total_lease,
-            statut: "paid",  // Default status
-            id_user_agence: agence.id // ✅ Use correct ID from users_agences
+            statut: "paid",
+            id_user_agence: agence.id
         });
 
         console.log("✅ [SUCCESS] Lease Payment Recorded:");

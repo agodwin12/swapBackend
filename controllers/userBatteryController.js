@@ -1,4 +1,5 @@
 const { BatteryValide, BatteryMotoUserAssociation, AssociationUserMoto, ValidatedUser, BmsData } = require("../models");
+const cache = require("../utils/cache");
 
 class BatteryController {
     static async getBatteryDetailsAndPrice(req, res) {
@@ -12,9 +13,16 @@ class BatteryController {
                 return res.status(400).json({ error: "mac_id and outgoingSOC are required" });
             }
 
+            // 🔁 Check Cache First
+            const cacheKey = `battery_info_${mac_id}`;
+            const cachedData = cache.get(cacheKey);
+            if (cachedData) {
+                console.log(`📦 [CACHE HIT] Returning cached battery data for MAC ID: ${mac_id}`);
+                return res.json(cachedData);
+            }
+
             console.log(`📡 [INFO] Fetching battery with MAC ID: ${mac_id}`);
 
-            // 1️⃣ Fetch Battery
             const battery = await BatteryValide.findOne({ where: { mac_id } });
             if (!battery) {
                 console.error("❌ [ERROR] Battery not found.");
@@ -23,7 +31,6 @@ class BatteryController {
 
             console.log("✅ [SUCCESS] Battery found:", battery.id);
 
-            // 2️⃣ Get Latest SOC from `bms_data`
             const bmsData = await BmsData.findOne({
                 where: { mac_id },
                 order: [["timestamp", "DESC"]]
@@ -46,11 +53,10 @@ class BatteryController {
                 return res.status(400).json({ error: "SOC data not available for this battery" });
             }
 
-            // 3️⃣ Fetch Associated User (Fixed Query)
             console.log("👤 [INFO] Fetching associated user for battery ID:", battery.id);
             const association = await BatteryMotoUserAssociation.findOne({
                 where: { battery_id: battery.id },
-                order: [["id", "DESC"]], // Get latest association
+                order: [["id", "DESC"]],
                 include: [
                     {
                         model: AssociationUserMoto,
@@ -74,15 +80,14 @@ class BatteryController {
             const user = association.associationUserMoto.user;
             console.log("✅ [SUCCESS] User found:", user);
 
-            // 4️⃣ Calculate Swap Price
-            let price = ((outgoingSOC - incomingSOC) * 2000) / 93;
-            price = Math.min(price, 2000);
-            const swapPrice = Math.ceil(price / 50) * 50; // Round to nearest 50
+            // 💰 Calculate Swap Price
+            let price = ((outgoingSOC - incomingSOC) * 1500) / 90;
+            price = Math.min(price, 1500);
+            const swapPrice = Math.ceil(price / 100) * 100;
 
             console.log(`💰 [INFO] Calculated Swap Price: ${swapPrice}`);
 
-            // 5️⃣ Return Response
-            return res.json({
+            const response = {
                 mac_id,
                 incomingSOC,
                 outgoingSOC,
@@ -94,7 +99,13 @@ class BatteryController {
                     phone: user.phone,
                     photo: user.photo
                 }
-            });
+            };
+
+            // 💾 Store in cache
+            cache.set(cacheKey, response);
+            console.log(`📦 [CACHE SET] Cached battery data for MAC ID: ${mac_id}`);
+
+            return res.json(response);
 
         } catch (error) {
             console.error("❌ [ERROR] Internal server error:", error);
