@@ -1,4 +1,4 @@
-const sequelize = require('../config/database'); // ✅ Ensure you're importing `sequelize`
+const sequelize = require('../config/database');
 const { QueryTypes } = require('sequelize');
 
 const getSOCFromBMS = async (macId) => {

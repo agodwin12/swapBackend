@@ -24,10 +24,9 @@ const distributeuragenceswapRoutes = require("./routes/distributeuragenceswapRou
 const distributeurHistoriqueRoutes = require("./routes/distributeuragencehistory");
 const batteryAgenceRoute = require('./routes/batteryAgenceRoutes'); // Ensure this path is correct
 const motoRoutes = require('./routes/motoRoutes');
-const leasePaymentRoutes = require("./routes/leasePaymentRoutes");
-
-
-
+const powerRoutes = require("./routes/powerRoutes");
+const leaseRoutes = require("./routes/lease.routes");
+const energyRoutes = require("./routes/energy.routes");
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
@@ -62,10 +61,12 @@ app.use("/api", batteryEntrepotSwapRoutes);
 app.use("/api", distributorswapbatteriesRoutes);
 app.use("/api", distributeuragenceswapRoutes);
 app.use("/api/historique/distributeur", distributeurHistoriqueRoutes);
-app.use("/api/swaps", swapRoutes); // This ensures "/api/swaps/agencies" is accessible
-app.use('/api', batteryAgenceRoute); // Ensure the prefix matches
+app.use("/api/swaps", swapRoutes);
+app.use('/api', batteryAgenceRoute);
 app.use('/api', motoRoutes);
-app.use("/api/payments", leasePaymentRoutes);
+app.use('/api/power', powerRoutes);
+app.use("/api/lease", leaseRoutes);
+app.use("/api/energy", energyRoutes);
 
 // Test Database Connection
 sequelize.authenticate()

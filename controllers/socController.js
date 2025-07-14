@@ -1,5 +1,5 @@
 const { BmsData } = require("../models");
-const cache = require("../utils/cache"); // import the cache
+const cache = require("../utils/cache");
 
 const SocController = {
     getLatestSOC: async (req, res) => {
@@ -7,7 +7,6 @@ const SocController = {
 
         console.log(`🔍 [SOC REQUEST] Fetching SOC for mac_id: ${mac_id}`);
 
-        // ✅ Check cache first
         const cachedSOC = cache.get(mac_id);
         if (cachedSOC) {
             console.log(`📦 [CACHE HIT] Returning cached SOC for ${mac_id}: ${cachedSOC}`);
@@ -43,9 +42,16 @@ const SocController = {
             const adjustedSOC = Math.max(0, Math.min(100, ((SOC - 10) * 100) / (100 - 10)));
             const formattedSOC = adjustedSOC.toFixed(2);
 
-            // ✅ Store in cache
-            cache.set(mac_id, formattedSOC);
-            console.log(`✅ [CACHED] SOC for ${mac_id}: ${formattedSOC}`);
+            // ✅ Cache only if the data is from the last 10 minutes
+            const now = new Date();
+            const dataTimestamp = new Date(latestBmsData.timestamp);
+            const diffMinutes = (now - dataTimestamp) / (1000 * 60);
+            if (diffMinutes <= 10) {
+                cache.set(mac_id, formattedSOC, 1800); // Cache for 30 minutes
+                console.log(`✅ [CACHED] SOC for ${mac_id}: ${formattedSOC}`);
+            } else {
+                console.log(`⚠️ [SKIPPED CACHE] Data is older than 10 minutes (${diffMinutes.toFixed(2)} mins)`);
+            }
 
             return res.status(200).json({ success: true, SOC: formattedSOC });
         } catch (error) {

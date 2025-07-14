@@ -3,7 +3,7 @@ const sequelize = require("../config/database");
 
 const db = {};
 
-// ✅ Load models correctly in the right order
+// ✅ Load all models
 db.ValidatedUser = require("./validatedUser")(sequelize, DataTypes);
 db.MotosValide = require("./motos_valide")(sequelize, DataTypes);
 db.AssociationUserMoto = require("./association_user_motos")(sequelize, DataTypes);
@@ -22,160 +22,157 @@ db.Swap = require("./swap")(sequelize, DataTypes);
 db.HistoriqueEntrepot = require("./historique_entrepots")(sequelize, DataTypes);
 db.HistoriqueAgence = require("./historique_agences")(sequelize, DataTypes);
 db.BatteryDistributeur = require("./BatteryDistributeur")(sequelize, DataTypes);
-db.HistoriqueEntrepot = require("./historique_entrepot")(sequelize, DataTypes);
-db.LeasePayment = require('./leasePayment')(sequelize, Sequelize); // Ensure this file exists
+db.ContratChauffeur = require("./contratChauffeur")(sequelize, DataTypes);
+db.Paiement = require("./paiement")(sequelize, DataTypes);
 
-
-// ✅ Initialize Model Associations (After Models Are Loaded)
+// ✅ Auto-associate models if associate() method is defined
 Object.keys(db).forEach((modelName) => {
     if (db[modelName].associate) {
         db[modelName].associate(db);
     }
 });
 
-// ✅ Define Model Associations
+//
+// ✅ Define additional associations manually if needed
+//
 
-// 🔹 AssociationUserMoto -> ValidatedUser
-db.AssociationUserMoto.belongsTo(db.ValidatedUser, {
-    foreignKey: "validated_user_id",
-    as: "validatedUser",
-    onDelete: "CASCADE",
+
+db.UsersAgences.belongsTo(db.Agences, {
+    foreignKey: "id_agence",
+    as: "agence",
 });
 
-// 🔹 AssociationUserMoto -> MotosValide
+db.Agences.hasMany(db.UsersAgences, {
+    foreignKey: "id_agence",
+    as: "users",
+});
+
+
+
+// AssociationUserMoto -> MotosValide
 db.AssociationUserMoto.belongsTo(db.MotosValide, {
     foreignKey: "moto_valide_id",
-    as: "associatedMoto", // 🔥 Changed alias from "moto" to "associatedMoto"
+    as: "motoInfo",
     onDelete: "CASCADE",
 });
 
-// 🔹 BatteryMotoUserAssociation -> AssociationUserMoto
+// ContratChauffeur -> AssociationUserMoto
+db.ContratChauffeur.belongsTo(db.AssociationUserMoto, {
+    foreignKey: "association_id",
+    as: "associatedLease",
+    onDelete: "CASCADE",
+});
+
+// ContratChauffeur -> AssociationUserMoto
+db.AssociationUserMoto.hasOne(db.ContratChauffeur, {
+    foreignKey: "association_id",
+    as: "contract",
+});
+
+
+// BatteryMotoUserAssociation -> AssociationUserMoto
 db.BatteryMotoUserAssociation.belongsTo(db.AssociationUserMoto, {
     foreignKey: "association_user_moto_id",
-    as: "associationUserMoto",
+    as: "batteryUserLink",
     onDelete: "CASCADE",
 });
 
-// 🔹 BatteryMotoUserAssociation -> BatteryValide
+// BatteryMotoUserAssociation -> BatteryValide
 db.BatteryMotoUserAssociation.belongsTo(db.BatteryValide, {
     foreignKey: "battery_id",
-    as: "associatedBatteryMotoUser",
+    as: "linkedBattery",
     onDelete: "CASCADE",
 });
 
-// 🔹 BatteryMotoUserAssociation -> ValidatedUser
-db.BatteryMotoUserAssociation.belongsTo(db.ValidatedUser, {
-    foreignKey: "association_user_moto_id",
-    as: "associatedUser",
-    onDelete: "CASCADE",
-});
-
-// 🔹 BatteryAgence -> BatteryValide
+// BatteryAgence -> BatteryValide
 db.BatteryAgence.belongsTo(db.BatteryValide, {
     foreignKey: "id_battery_valide",
-    as: "associatedBatteryAgence",
+    as: "batteryDetailsAgence",
     onDelete: "CASCADE",
 });
 
-// 🔹 BatteryAgence -> Agences
+// BatteryAgence -> Agences
 db.BatteryAgence.belongsTo(db.Agences, {
     foreignKey: "id_agence",
-    as: "linkedAgence",
+    as: "linkedAgency",
     onDelete: "CASCADE",
 });
 
-// 🔹 BatteryEntrepot -> BatteryValide
+// BatteryEntrepot -> BatteryValide
 db.BatteryEntrepot.belongsTo(db.BatteryValide, {
     foreignKey: "id_battery_valide",
-    as: "associatedBatteryEntrepot",
+    as: "batteryDetailsEntrepot",
     onDelete: "CASCADE",
 });
 
-// 🔹 BatteryEntrepot -> Entrepot
+// BatteryEntrepot -> Entrepot
 db.BatteryEntrepot.belongsTo(db.Entrepot, {
     foreignKey: "id_entrepot",
-    as: "linkedEntrepot",
+    as: "linkedWarehouse",
     onDelete: "CASCADE",
 });
 
-// 🔹 Agences -> Entrepot
-db.Agences.belongsTo(db.Entrepot, {
-    foreignKey: "id_entrepot",
-    as: "linkedEntrepot",
-});
 
-// 🔹 BmsData -> BatteryValide
+// BmsData -> BatteryValide
 db.BmsData.belongsTo(db.BatteryValide, {
     foreignKey: "mac_id",
     targetKey: "mac_id",
-    as: "associatedBatteryBms",
+    as: "batteryBms",
 });
 
-// 🔹 Swap -> BatteryMotoUserAssociation
+// Swap -> BatteryMotoUserAssociation
 db.Swap.belongsTo(db.BatteryMotoUserAssociation, {
     foreignKey: "association_user_moto_id",
-    as: "swap_user_association",
+    as: "swapAssociation",
     onDelete: "CASCADE",
 });
 
-// 🔹 Swap -> BatteryValide (Incoming Battery)
+// Swap -> BatteryValide IN
 db.Swap.belongsTo(db.BatteryValide, {
     foreignKey: "battery_in_id",
-    as: "swap_battery_in",
+    as: "batteryIn",
     onDelete: "CASCADE",
 });
 
-// 🔹 Swap -> BatteryValide (Outgoing Battery)
+// Swap -> BatteryValide OUT
 db.Swap.belongsTo(db.BatteryValide, {
     foreignKey: "battery_out_id",
-    as: "swap_battery_out",
+    as: "batteryOut",
     onDelete: "CASCADE",
 });
 
-// 🔹 HistoriqueEntrepot -> Entrepot
+// HistoriqueEntrepot -> Entrepot
 db.HistoriqueEntrepot.belongsTo(db.Entrepot, {
     foreignKey: "id_entrepot",
-    as: "linkedEntrepot",
+    as: "entrepotHistory",
     onDelete: "CASCADE",
 });
 
-// 🔹 HistoriqueEntrepot -> Distributeurs
+// HistoriqueEntrepot -> Distributeurs
 db.HistoriqueEntrepot.belongsTo(db.Distributeurs, {
     foreignKey: "id_distributeur",
-    as: "linkedDistributeur",
+    as: "distributeurInfo",
     onDelete: "CASCADE",
 });
 
-// 🔹 HistoriqueAgence -> Agences
+// HistoriqueAgence -> Agences
 db.HistoriqueAgence.belongsTo(db.Agences, {
     foreignKey: "id_agence",
-    as: "linkedAgence",
+    as: "agencyHistory",
     onDelete: "CASCADE",
 });
 
-// 🔹 HistoriqueAgence -> Entrepot
+// HistoriqueAgence -> Entrepot
 db.HistoriqueAgence.belongsTo(db.Entrepot, {
     foreignKey: "id_entrepot",
-    as: "linkedEntrepot",
+    as: "entrepotHistoryForAgency",
     onDelete: "CASCADE",
 });
 
-// 🔹 LeasePayment -> MotosValide ✅ New Fix
-db.LeasePayment.belongsTo(db.MotosValide, {
-    foreignKey: "id_moto",
-    as: "motoDetails",
-    onDelete: "CASCADE",
-});
+//
+// ✅ Finalize Sequelize
+//
 
-// 🔹 LeasePayment -> UsersAgences ✅ New Fix
-db.LeasePayment.belongsTo(db.UsersAgences, {
-    foreignKey: "id_user_agence",
-    as: "agenceDetails",
-    onDelete: "CASCADE",
-});
-
-
-// ✅ Sync all models with the database
 sequelize
     .sync({ alter: false })
     .then(() => {
@@ -185,7 +182,6 @@ sequelize
         console.error("❌ Error syncing database:", err);
     });
 
-// ✅ Attach Sequelize instance
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 

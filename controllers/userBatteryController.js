@@ -1,4 +1,11 @@
-const { BatteryValide, BatteryMotoUserAssociation, AssociationUserMoto, ValidatedUser, BmsData } = require("../models");
+const {
+    BatteryValide,
+    BatteryMotoUserAssociation,
+    AssociationUserMoto,
+    ValidatedUser,
+    BmsData
+} = require("../models");
+
 const cache = require("../utils/cache");
 
 class BatteryController {
@@ -13,7 +20,7 @@ class BatteryController {
                 return res.status(400).json({ error: "mac_id and outgoingSOC are required" });
             }
 
-            // 🔁 Check Cache First
+            // 🔁 Cache check
             const cacheKey = `battery_info_${mac_id}`;
             const cachedData = cache.get(cacheKey);
             if (cachedData) {
@@ -37,10 +44,10 @@ class BatteryController {
             });
 
             let incomingSOC = null;
-            if (bmsData && bmsData.state) {
+            if (bmsData?.state) {
                 try {
                     const stateJson = JSON.parse(bmsData.state);
-                    incomingSOC = stateJson.SOC || null;
+                    incomingSOC = stateJson.SOC ?? null;
                     console.log("🔋 [INFO] Extracted incoming SOC:", incomingSOC);
                 } catch (error) {
                     console.error("❌ [ERROR] Error parsing BMS state data:", error);
@@ -49,22 +56,22 @@ class BatteryController {
             }
 
             if (incomingSOC == null) {
-                console.error("❌ [ERROR] SOC data not available.");
                 return res.status(400).json({ error: "SOC data not available for this battery" });
             }
 
             console.log("👤 [INFO] Fetching associated user for battery ID:", battery.id);
+
             const association = await BatteryMotoUserAssociation.findOne({
                 where: { battery_id: battery.id },
                 order: [["id", "DESC"]],
                 include: [
                     {
                         model: AssociationUserMoto,
-                        as: "associationUserMoto",
+                        as: "association",
                         include: [
                             {
                                 model: ValidatedUser,
-                                as: "user",
+                                as: "validatedUser",
                                 attributes: ["id", "nom", "prenom", "phone", "photo"]
                             }
                         ]
@@ -72,15 +79,19 @@ class BatteryController {
                 ]
             });
 
-            if (!association || !association.associationUserMoto || !association.associationUserMoto.user) {
+            if (
+                !association ||
+                !association.association ||
+                !association.association.validatedUser
+            ) {
                 console.error("❌ [ERROR] No user found for this battery.");
                 return res.status(404).json({ error: "No user found for this battery" });
             }
 
-            const user = association.associationUserMoto.user;
+            const user = association.association.validatedUser;
             console.log("✅ [SUCCESS] User found:", user);
 
-            // 💰 Calculate Swap Price
+            // 💰 Calculate price
             let price = ((outgoingSOC - incomingSOC) * 1500) / 90;
             price = Math.min(price, 1500);
             const swapPrice = Math.ceil(price / 100) * 100;
@@ -101,7 +112,6 @@ class BatteryController {
                 }
             };
 
-            // 💾 Store in cache
             cache.set(cacheKey, response);
             console.log(`📦 [CACHE SET] Cached battery data for MAC ID: ${mac_id}`);
 

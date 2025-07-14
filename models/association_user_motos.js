@@ -3,21 +3,28 @@ const { Model, DataTypes } = require("sequelize");
 module.exports = (sequelize) => {
     class AssociationUserMoto extends Model {
         static associate(models) {
-            // ✅ Association with `ValidatedUser`
+            // ✅ Validated User (Only one alias)
             AssociationUserMoto.belongsTo(models.ValidatedUser, {
                 foreignKey: "validated_user_id",
-                as: "user",
+                as: "validatedUser", // ✅ Use this consistently
                 onDelete: "CASCADE",
             });
 
-            // ✅ Association with `MotosValide`
+            // ✅ Associated Contract
+            AssociationUserMoto.hasOne(models.ContratChauffeur, {
+                foreignKey: "association_id",
+                as: "leaseContract",
+                onDelete: "CASCADE",
+            });
+
+            // ✅ Moto
             AssociationUserMoto.belongsTo(models.MotosValide, {
                 foreignKey: "moto_valide_id",
                 as: "userMoto",
                 onDelete: "CASCADE",
             });
 
-            // ✅ Association with `BatteryMotoUserAssociation`
+            // ✅ Battery associations
             AssociationUserMoto.hasMany(models.BatteryMotoUserAssociation, {
                 foreignKey: "association_user_moto_id",
                 as: "batteryAssociations",
@@ -41,28 +48,33 @@ module.exports = (sequelize) => {
                 type: DataTypes.BIGINT.UNSIGNED,
                 allowNull: false,
             },
-            created_at: { // ✅ Matches your database column name
+            created_at: {
                 type: DataTypes.DATE,
                 allowNull: false,
                 defaultValue: DataTypes.NOW,
             },
-            updated_at: { // ✅ Matches your database column name
+            updated_at: {
                 type: DataTypes.DATE,
                 allowNull: false,
                 defaultValue: DataTypes.NOW,
             },
-            deleted_at: { // ✅ Matches your database column name
+            deleted_at: {
                 type: DataTypes.DATE,
                 allowNull: true,
+            },
+            statut: {
+                type: DataTypes.STRING(50),
+                allowNull: false,
+                defaultValue: 'lease',
             },
         },
         {
             sequelize,
             modelName: "AssociationUserMoto",
             tableName: "association_user_motos",
-            timestamps: true, // ✅ Enables created_at and updated_at
-            paranoid: true, // ✅ Enables soft deletes (deleted_at)
-            underscored: true, // ✅ Forces Sequelize to use `created_at`, `updated_at`, `deleted_at`
+            timestamps: true,
+            paranoid: true,
+            underscored: true,
         }
     );
 

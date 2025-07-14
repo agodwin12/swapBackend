@@ -38,7 +38,6 @@ const performSwap = async (req, res) => {
         }
 
         console.log(`✅ [DEBUG] Found User ID: ${user.id}`);
-
         console.log("🔍 [DEBUG] Validating batteries for swap...");
 
         // ✅ Validate that all batteries exist in `batteries_valides`
@@ -54,7 +53,6 @@ const performSwap = async (req, res) => {
             return res.status(400).json({ message: "Some batteries are not recognized in the system." });
         }
 
-        // ✅ Convert `mac_id` to `id`
         const batteryMacToIdMap = new Map(existingBatteries.map(b => [b.mac_id, b.id]));
         const batteryIdToMacMap = new Map(existingBatteries.map(b => [b.id, b.mac_id]));
 
@@ -77,67 +75,79 @@ const performSwap = async (req, res) => {
             console.log("✅ [DEBUG] Removed outgoing batteries from Entrepôt.");
         }
 
-        // ✅ Add Outgoing Batteries to Agence (Ensuring all batteries are stored in battery_agences)
+        // ✅ Before adding to battery_agences, remove from battery_entrepots if exists
         if (batteriesSortantesIds.length > 0) {
+            await db.BatteryEntrepot.destroy({
+                where: { id_battery_valide: batteriesSortantesIds },
+                transaction
+            });
+
             await db.BatteryAgence.bulkCreate(
-                batteriesSortantesIds.map(batteryId => ({ id_battery_valide: batteryId, id_agence })),
+                batteriesSortantesIds.map(batteryId => ({
+                    id_battery_valide: batteryId,
+                    id_agence
+                })),
                 { transaction }
             );
-            console.log("✅ [DEBUG] Added outgoing batteries to Agence (battery_agences table).");
+            console.log("✅ [DEBUG] Cleaned from warehouse and inserted into agency.");
         }
 
-        // ✅ Remove Incoming Batteries from Agence (Ensuring batteries taken from agency are removed)
+        // ✅ Remove Incoming Batteries from Agence
         if (batteriesEntrantesIds.length > 0) {
             await db.BatteryAgence.destroy({
                 where: { id_battery_valide: batteriesEntrantesIds, id_agence },
                 transaction
             });
-            console.log("✅ [DEBUG] Removed incoming batteries from Agence (battery_agences table).");
+            console.log("✅ [DEBUG] Removed incoming batteries from Agence.");
         }
 
-        // ✅ Add Incoming Batteries to Entrepôt
+        // ✅ Before adding to battery_entrepots, remove from battery_agences if exists
         if (batteriesEntrantesIds.length > 0) {
+            await db.BatteryAgence.destroy({
+                where: { id_battery_valide: batteriesEntrantesIds },
+                transaction
+            });
+
             await db.BatteryEntrepot.bulkCreate(
-                batteriesEntrantesIds.map(batteryId => ({ id_battery_valide: batteryId, id_entrepot })),
+                batteriesEntrantesIds.map(batteryId => ({
+                    id_battery_valide: batteryId,
+                    id_entrepot
+                })),
                 { transaction }
             );
-            console.log("✅ [DEBUG] Added incoming batteries to Entrepôt.");
+            console.log("✅ [DEBUG] Cleaned from agency and inserted into warehouse.");
         }
 
-        // ✅ Save Swap History in `historique_entrepots` (using MAC IDs)
-        console.log("📌 [DEBUG] Storing single swap entry in `historique_entrepots`...");
+        // ✅ Log swap in historique_entrepots
         await db.HistoriqueEntrepot.create({
             id_entrepot,
             id_agence,
             id_user_entrepot: user.id,
-            bat_sortante: JSON.stringify(batteriesSortantesMacs),  // ✅ Store MAC IDs as JSON array
-            bat_entrante: JSON.stringify(batteriesEntrantesMacs),  // ✅ Store MAC IDs as JSON array
+            bat_sortante: JSON.stringify(batteriesSortantesMacs),
+            bat_entrante: JSON.stringify(batteriesEntrantesMacs),
             type_swap,
             created_at: new Date(),
             updated_at: new Date()
         }, { transaction });
+        console.log("✅ [SUCCESS] Swap recorded in historique_entrepots.");
 
-        console.log("✅ [SUCCESS] Swap entry saved in `historique_entrepots`.");
-
-        // ✅ Save Swap History in `historique_agences` (using MAC IDs)
-        console.log("📌 [DEBUG] Storing single swap entry in `historique_agences`...");
+        // ✅ Log swap in historique_agences
         await db.HistoriqueAgence.create({
             id_agence,
             id_entrepot,
-            bat_sortante: JSON.stringify(batteriesSortantesMacs),  // ✅ Store MAC IDs as JSON array
-            bat_entrante: JSON.stringify(batteriesEntrantesMacs),  // ✅ Store MAC IDs as JSON array
+            bat_sortante: JSON.stringify(batteriesSortantesMacs),
+            bat_entrante: JSON.stringify(batteriesEntrantesMacs),
             type_swap,
             date_time: new Date(),
             created_at: new Date(),
             updated_at: new Date()
         }, { transaction });
-
-        console.log("✅ [SUCCESS] Swap entry saved in `historique_agences`.");
+        console.log("✅ [SUCCESS] Swap recorded in historique_agences.");
 
         // ✅ Commit transaction
         await transaction.commit();
 
-        // ✅ Send SMS Notification
+        // ✅ Optional: Send notification
         await sendSwapNotification(id_agence, batteriesSortantesMacs, batteriesEntrantesMacs);
 
         console.log("✅ [SUCCESS] Swap completed successfully.");
@@ -149,6 +159,7 @@ const performSwap = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 
 /**
  * ✅ Function to Send SMS Notification to Agence

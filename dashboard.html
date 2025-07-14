@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxym TV Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            position: relative;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
+
+        .dashboard-bg {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            backdrop-filter: blur(3px);
+            background: linear-gradient(135deg,
+            rgba(102, 126, 234, 0.1) 0%,
+            rgba(118, 75, 162, 0.1) 25%,
+            rgba(79, 172, 254, 0.1) 50%,
+            rgba(240, 147, 251, 0.1) 75%,
+            rgba(102, 126, 234, 0.1) 100%);
+        }
+
+        /* Header */
+        .header {
+            position: absolute;
+            top: 30px;
+            left: 40px;
+            right: 40px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, #00d4ff, #90e0ef);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #001d3d;
+        }
+
+        .header-title {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #ffffff, #e0e7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .time-display {
+            font-size: 24px;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+
+        /* Main Map Area */
+        .map-container {
+            position: absolute;
+            top: 140px;
+            left: 40px;
+            width: 1120px;
+            height: 720px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .map-placeholder {
+            width: 100%;
+            height: 100%;
+            background:
+                    radial-gradient(circle at 30% 40%, rgba(0, 212, 255, 0.3) 0%, transparent 50%),
+                    radial-gradient(circle at 70% 60%, rgba(144, 224, 239, 0.3) 0%, transparent 50%),
+                    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 40%);
+            position: relative;
+            border-radius: 20px;
+        }
+
+        /* Bike stations on map */
+        .station {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #00ff88;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            animation: pulse 2s infinite;
+        }
+
+        .station.low { background: #ff6b6b; }
+        .station.medium { background: #ffd93d; }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+        }
+
+        /* Sample stations positioned on map */
+        .station:nth-child(1) { top: 25%; left: 20%; }
+        .station:nth-child(2) { top: 40%; left: 35%; }
+        .station:nth-child(3) { top: 60%; left: 25%; }
+        .station:nth-child(4) { top: 30%; left: 60%; background: #ffd93d; }
+        .station:nth-child(5) { top: 70%; left: 75%; background: #ff6b6b; }
+        .station:nth-child(6) { top: 15%; left: 80%; }
+        .station:nth-child(7) { top: 85%; left: 40%; }
+        .station:nth-child(8) { top: 45%; left: 85%; background: #ffd93d; }
+
+        /* Stats Panel */
+        .stats-panel {
+            position: absolute;
+            top: 140px;
+            right: 40px;
+            width: 680px;
+            height: 720px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Stat Cards */
+        .stat-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 30px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00d4ff, #90e0ef, #00ff88);
+        }
+
+        .stat-title {
+            font-size: 18px;
+            opacity: 0.8;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(45deg, #ffffff, #e0e7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-subtitle {
+            font-size: 16px;
+            opacity: 0.7;
+        }
+
+        .stat-icon {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            opacity: 0.3;
+        }
+
+        /* Two-column cards */
+        .double-card {
+            display: flex;
+            gap: 20px;
+        }
+
+        .half-card {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 25px;
+            text-align: center;
+        }
+
+        .half-card .stat-value {
+            font-size: 36px;
+        }
+
+        /* Bottom Status Bar */
+        .status-bar {
+            position: absolute;
+            bottom: 30px;
+            left: 40px;
+            right: 40px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 0 40px;
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-label {
+            font-size: 14px;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .status-online { color: #00ff88; }
+        .status-warning { color: #ffd93d; }
+        .status-offline { color: #ff6b6b; }
+
+        /* Floating animations */
+        .floating-element {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            animation: float 8s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        .floating-element:nth-child(1) {
+            width: 150px;
+            height: 150px;
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .floating-element:nth-child(2) {
+            width: 100px;
+            height: 100px;
+            top: 70%;
+            right: 15%;
+            animation-delay: 3s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) scale(1); opacity: 0.03; }
+            50% { transform: translateY(-15px) scale(1.1); opacity: 0.08; }
+        }
+
+        /* Legend */
+        .map-legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.available { background: #00ff88; }
+        .legend-dot.low { background: #ffd93d; }
+        .legend-dot.empty { background: #ff6b6b; }
+    </style>
+</head>
+<body>
+<div class="dashboard-bg">
+    <!-- Floating background elements -->
+    <div class="floating-element"></div>
+    <div class="floating-element"></div>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="logo-section">
+            <div class="logo">P</div>
+            <div class="header-title">PROXYM  DASHBOARD</div>
+        </div>
+        <div class="time-display" id="current-time">12:34 PM</div>
+    </div>
+
+    <!-- Main Map Container -->
+    <div class="map-container">
+        <div class="map-placeholder">
+            <!-- Bike stations -->
+            <div class="station"></div>
+            <div class="station"></div>
+            <div class="station"></div>
+            <div class="station medium"></div>
+            <div class="station low"></div>
+            <div class="station"></div>
+            <div class="station"></div>
+            <div class="station medium"></div>
+        </div>
+
+        <!-- Map Legend -->
+        <div class="map-legend">
+            <div class="legend-item">
+                <div class="legend-dot available"></div>
+                <span>Available (5+ bikes)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot low"></div>
+                <span>Low (1-4 bikes)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot empty"></div>
+                <span>Empty/Full</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Panel -->
+    <div class="stats-panel">
+        <!-- Total Bikes -->
+        <div class="stat-card">
+            <div class="stat-title">Total Active Bikes</div>
+            <div class="stat-value">847</div>
+            <div class="stat-subtitle">↑ 12 more than yesterday</div>
+            <svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M5 13c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm14.8-9.7L15 12.7V9h-4v7h4v-3.3l4.8-4.8c.4-.4.4-1 0-1.4-.4-.4-1-.4-1.4 0zM19 13c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4z"/>
+            </svg>
+        </div>
+
+        <!-- Swap Mileage -->
+        <div class="stat-card">
+            <div class="stat-title">Total Swap Mileage Today</div>
+            <div class="stat-value">2,847</div>
+            <div class="stat-subtitle">km traveled by users</div>
+        </div>
+
+        <!-- Double Cards Row -->
+        <div class="double-card">
+            <div class="half-card">
+                <div class="stat-title">Active Stations</div>
+                <div class="stat-value status-online">124</div>
+                <div class="stat-subtitle">of 135 total</div>
+            </div>
+            <div class="half-card">
+                <div class="stat-title">Current Rides</div>
+                <div class="stat-value">67</div>
+                <div class="stat-subtitle">bikes in use</div>
+            </div>
+        </div>
+
+        <!-- Revenue Today -->
+        <div class="stat-card">
+            <div class="stat-title">Revenue Today</div>
+            <div class="stat-value">$4,326</div>
+            <div class="stat-subtitle">↑ 18% vs yesterday</div>
+        </div>
+
+        <!-- Double Cards Row 2 -->
+        <div class="double-card">
+            <div class="half-card">
+                <div class="stat-title">Avg Trip Duration</div>
+                <div class="stat-value">23</div>
+                <div class="stat-subtitle">minutes</div>
+            </div>
+            <div class="half-card">
+                <div class="stat-title">Battery Level</div>
+                <div class="stat-value status-online">87%</div>
+                <div class="stat-subtitle">fleet average</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Status Bar -->
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="status-label">System Status</div>
+            <div class="status-value status-online">ONLINE</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Maintenance Needed</div>
+            <div class="status-value status-warning">7</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Offline Stations</div>
+            <div class="status-value status-offline">3</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Total Users Today</div>
+            <div class="status-value">1,247</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Peak Hour</div>
+            <div class="status-value">6-7 PM</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Update time every second
+    function updateTime() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+        document.getElementById('current-time').textContent = timeString;
+    }
+
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // Simulate real-time data updates
+    function updateStats() {
+        const activeBikes = document.querySelector('.stat-card .stat-value');
+        const currentValue = parseInt(activeBikes.textContent);
+        const newValue = currentValue + Math.floor(Math.random() * 3) - 1;
+        if (newValue > 800 && newValue < 900) {
+            activeBikes.textContent = newValue;
+        }
+    }
+
+    setInterval(updateStats, 5000);
+</script>
+</body>
+</html>

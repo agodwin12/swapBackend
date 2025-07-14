@@ -11,8 +11,8 @@ module.exports = (sequelize) => {
             });
 
             // ✅ Association with LeasePayment
-            MotosValide.hasMany(models.LeasePayment, {
-                foreignKey: "id_moto", // Reference id_moto in lease_payments
+            MotosValide.hasMany(models.Paiement, {
+                foreignKey: "id_moto",
                 as: "leasePayments",
                 onDelete: "CASCADE",
             });

@@ -3,10 +3,9 @@ const { Model, DataTypes } = require("sequelize");
 module.exports = (sequelize) => {
     class ValidatedUser extends Model {
         static associate(models) {
-            // ✅ Each user can be associated with many battery-moto-user associations
-            ValidatedUser.hasMany(models.BatteryMotoUserAssociation, {
-                foreignKey: "association_user_moto_id",
-                as: "batteryAssociations",
+            ValidatedUser.hasMany(models.AssociationUserMoto, {
+                foreignKey: "validated_user_id",
+                as: "associations",
                 onDelete: "CASCADE",
             });
         }
@@ -16,50 +15,27 @@ module.exports = (sequelize) => {
         {
             id: {
                 type: DataTypes.BIGINT.UNSIGNED,
-                autoIncrement: true,
                 primaryKey: true,
+                autoIncrement: true,
             },
             user_unique_id: {
                 type: DataTypes.STRING,
                 allowNull: false,
-                unique: true,
             },
-            nom: {
-                type: DataTypes.STRING,
-                allowNull: false,
-            },
-            prenom: {
-                type: DataTypes.STRING,
-                allowNull: false,
-            },
-            email: {
-                type: DataTypes.STRING,
-                allowNull: false,
-            },
-            phone: {
-                type: DataTypes.STRING,
-                allowNull: false,
-            },
-            photo: {
-                type: DataTypes.STRING,
-                allowNull: true,
-            },
-            created_at: {
-                type: DataTypes.DATE,
-                allowNull: true,
-                defaultValue: DataTypes.NOW,
-            },
-            updated_at: {
-                type: DataTypes.DATE,
-                allowNull: true,
-                defaultValue: DataTypes.NOW,
-            },
+            nom: DataTypes.STRING,
+            prenom: DataTypes.STRING,
+            email: DataTypes.STRING,
+            phone: DataTypes.STRING,
+            status: DataTypes.STRING,
+            photo: DataTypes.STRING,
+            domicile: DataTypes.STRING,
         },
         {
             sequelize,
             modelName: "ValidatedUser",
             tableName: "validated_users",
             timestamps: true,
+            paranoid: true,
             underscored: true,
         }
     );

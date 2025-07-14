@@ -37,7 +37,12 @@ module.exports = (sequelize) => {
         email: {
             type: DataTypes.STRING,
             allowNull: false
-        }
+        },
+        energy: {
+            type: DataTypes.TINYINT,
+            allowNull: false,
+            defaultValue: 1,
+        },
     }, {
         sequelize,
         modelName: "Agences",
