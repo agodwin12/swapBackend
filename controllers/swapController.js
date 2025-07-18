@@ -2,6 +2,7 @@ const axios = require('axios');
 const { sequelize, Sequelize } = require("../models");
 const { QueryTypes } = Sequelize;
 const getSOCFromBMS = require("../utils/getSOCFromBMS");
+const getSYLAFromBMS = require("../utils/getSYLAFromBMS");
 
 const CLICK_SEND_USERNAME = "YOUR_CLICK_SEND_USERNAME";
 const CLICK_SEND_API_KEY = "YOUR_CLICK_SEND_API_KEY";
@@ -85,7 +86,6 @@ async function swapBattery(req, res) {
             return res.status(400).json({ message: "Outgoing battery not found" });
         }
 
-        // ✅ Check if incoming battery is associated with a user
         const [incomingAssociation] = await sequelize.query(
             `SELECT id, association_user_moto_id
              FROM battery_moto_user_association
@@ -107,7 +107,6 @@ async function swapBattery(req, res) {
 
         console.log("✅ [ASSOCIATION FOUND] Incoming battery is assigned:", incomingAssociation);
 
-        // ✅ Log outgoing battery user association (but don’t block)
         const [userAssoc] = await sequelize.query(
             `SELECT id FROM battery_moto_user_association
              WHERE battery_id = ?
@@ -117,7 +116,6 @@ async function swapBattery(req, res) {
         );
         console.log("ℹ️ [INFO] Outgoing battery user association (ignored):", userAssoc);
 
-        // ❌ Block if outgoing battery is in another agence
         const [batteryAgence] = await sequelize.query(
             `SELECT id_agence FROM battery_agences
              WHERE id_battery_valide = ?
@@ -174,7 +172,6 @@ async function swapBattery(req, res) {
             );
             console.log("🗑️ [REMOVED] Outgoing battery from agence");
 
-            // ✅ Delete incoming battery from battery_agences if found there
             const [incomingBatteryAgence] = await sequelize.query(
                 `SELECT id, id_agence
                  FROM battery_agences
@@ -194,7 +191,6 @@ async function swapBattery(req, res) {
                 console.log("ℹ️ [INFO] Incoming battery not in battery_agences. No action required.");
             }
 
-            // ✅ Insert incoming battery to current agence after swap
             await sequelize.query(
                 "INSERT INTO battery_agences (id_battery_valide, id_agence) VALUES (?, ?)",
                 { replacements: [incomingBatteryId, id_agence], type: QueryTypes.INSERT, transaction }
@@ -213,17 +209,43 @@ async function swapBattery(req, res) {
             const outgoingSOC = await getSOCFromBMS(battery_out_mac_id);
             console.log(`📊 [SOC] Incoming: ${incomingSOC}, Outgoing: ${outgoingSOC}`);
 
+            // ✅ New SYLA calculation block
+            const syla = await getSYLAFromBMS(battery_out_mac_id);
+            console.log(`📊 [SYLA] Outgoing battery SYLA (SOE): ${syla}`);
+
+            let finalSwapPrice = parsedSwapPrice;
+
+            if (syla != null && !isNaN(syla)) {
+                let newPrice = (parsedSwapPrice * syla) / Math.max(syla, 50);
+                newPrice = Math.min(newPrice, 1500);
+                finalSwapPrice = Math.round(newPrice);
+                console.log(`💰 [PRICE UPDATED] SYLA-adjusted price: ${finalSwapPrice}`);
+            } else {
+                console.log("⚠️ [PRICE] SYLA unavailable. Keeping original backend-calculated price.");
+            }
+
             await sequelize.query(
-                `INSERT INTO swaps (battery_moto_user_association_id, agent_user_id, battery_out_id, battery_in_id,
-                                    swap_price, swap_date, nom, prenom, phone, id_agence, battery_in_soc, battery_out_soc)
-                 VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO swaps (
+                    battery_moto_user_association_id,
+                    agent_user_id,
+                    battery_out_id,
+                    battery_in_id,
+                    swap_price,
+                    swap_date,
+                    nom,
+                    prenom,
+                    phone,
+                    id_agence,
+                    battery_in_soc,
+                    battery_out_soc
+                ) VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?)`,
                 {
                     replacements: [
                         battery_moto_user_association_id,
                         agent_user_id,
                         outgoingBatteryId,
                         incomingBatteryId,
-                        parsedSwapPrice,
+                        finalSwapPrice,
                         nom, prenom, phone, id_agence,
                         incomingSOC, outgoingSOC
                     ],
@@ -235,10 +257,13 @@ async function swapBattery(req, res) {
             await transaction.commit();
             console.log("✅ [TRANSACTION COMMIT]");
 
-            await sendSms(phone, `Swap Successful for ${prenom}\nOutgoing Battery: ${battery_out_mac_id}\nIncoming Battery: ${battery_in_mac_id}\nPrice: ${swap_price}`);
+            await sendSms(phone,
+                `Swap Successful for ${prenom}\nOutgoing Battery: ${battery_out_mac_id}\nIncoming Battery: ${battery_in_mac_id}\nPrice: ${finalSwapPrice}`
+            );
 
             return res.json({
                 message: "Battery swap successful",
+                swapPrice: finalSwapPrice,
                 user: { nom, prenom, phone }
             });
 
