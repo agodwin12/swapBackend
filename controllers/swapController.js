@@ -218,7 +218,7 @@ async function swapBattery(req, res) {
             if (syla != null && !isNaN(syla)) {
                 let newPrice = (parsedSwapPrice * syla) / Math.max(syla, 50);
                 newPrice = Math.min(newPrice, 1500);
-                finalSwapPrice = Math.round(newPrice);
+                finalSwapPrice = Math.ceil(newPrice / 100) * 100;
                 console.log(`💰 [PRICE UPDATED] SYLA-adjusted price: ${finalSwapPrice}`);
             } else {
                 console.log("⚠️ [PRICE] SYLA unavailable. Keeping original backend-calculated price.");

@@ -26,7 +26,11 @@ exports.getBatteriesForAgence = async (req, res) => {
 
         if (!batteries || batteries.length === 0) {
             console.log("⚠️ [INFO] No batteries found in this agence.");
-            return res.status(200).json({ success: true, batteries: [], stats: { charged: 0, low: 0, total: 0 } });
+            return res.status(200).json({
+                success: true,
+                batteries: [],
+                stats: { charged: 0, low: 0, total: 0 }
+            });
         }
 
         let charged = 0;
@@ -36,6 +40,7 @@ exports.getBatteriesForAgence = async (req, res) => {
             batteries.map(async (battery) => {
                 const mac_id = battery?.battery?.mac_id || "Unknown";
                 let formattedSOC = null;
+                let sylaValue = null;
 
                 if (mac_id !== "Unknown") {
                     const cachedSOC = cache.get(mac_id);
@@ -56,12 +61,22 @@ exports.getBatteriesForAgence = async (req, res) => {
                                 if (diffMinutes <= 10) {
                                     const stateData = JSON.parse(latestBmsData.state);
                                     const SOC = stateData?.SOC;
+                                    const SYLA = stateData?.SYLA;
 
                                     if (SOC !== undefined && SOC !== null) {
                                         const adjustedSOC = Math.max(0, Math.min(100, ((SOC - 10) * 100) / 90));
                                         formattedSOC = adjustedSOC.toFixed(2);
                                         cache.set(mac_id, formattedSOC, 120); // cache for 2 minutes
                                         console.log(`✅ [SOC CACHED] ${mac_id}: ${formattedSOC}`);
+                                    } else {
+                                        console.log(`⚠️ [NO SOC] Missing SOC in state for ${mac_id}`);
+                                    }
+
+                                    if (SYLA !== undefined && SYLA !== null) {
+                                        sylaValue = parseFloat(SYLA);
+                                        console.log(`⚙️ [SYLA] ${mac_id}: ${sylaValue}`);
+                                    } else {
+                                        console.log(`⚠️ [NO SYLA] Missing SYLA in state for ${mac_id}`);
                                     }
                                 } else {
                                     console.log(`⚠️ [STALE DATA] ${mac_id} is ${diffMinutes.toFixed(1)} mins old`);
@@ -70,7 +85,7 @@ exports.getBatteriesForAgence = async (req, res) => {
                                 console.log(`❌ [NO BMS DATA] for ${mac_id}`);
                             }
                         } catch (err) {
-                            console.log(`❌ [ERROR] Fetching SOC for ${mac_id}: ${err.message}`);
+                            console.log(`❌ [ERROR] Fetching SOC/SYLA for ${mac_id}: ${err.message}`);
                         }
                     }
                 }
@@ -85,7 +100,8 @@ exports.getBatteriesForAgence = async (req, res) => {
                 return {
                     id: battery.id,
                     mac_id,
-                    SOC: formattedSOC !== null ? formattedSOC : "Unavailable"
+                    SOC: formattedSOC !== null ? formattedSOC : "Unavailable",
+                    SYLA: sylaValue !== null ? sylaValue : "Unavailable"
                 };
             })
         );
@@ -97,8 +113,8 @@ exports.getBatteriesForAgence = async (req, res) => {
         };
 
         console.log("📊 [FINAL STATS]", stats);
-
         console.log("✅ [RESPONSE SENT] Returning batteries and stats");
+
         return res.status(200).json({
             success: true,
             batteries: formattedBatteries,
@@ -107,6 +123,9 @@ exports.getBatteriesForAgence = async (req, res) => {
 
     } catch (error) {
         console.error("🔥 [FATAL ERROR] While fetching batteries:", error);
-        return res.status(500).json({ success: false, message: "Internal Server Error" });
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        });
     }
 };

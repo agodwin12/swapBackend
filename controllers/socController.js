@@ -10,7 +10,7 @@ const SocController = {
         const cachedSOC = cache.get(mac_id);
         if (cachedSOC) {
             console.log(`📦 [CACHE HIT] Returning cached SOC for ${mac_id}: ${cachedSOC}`);
-            return res.status(200).json({ success: true, SOC: cachedSOC });
+            return res.status(200).json({ success: true, SOC: cachedSOC, SYLA: "Cached separately or unavailable" });
         }
 
         try {
@@ -26,11 +26,16 @@ const SocController = {
             }
 
             let SOC = null;
+            let SYLA = null;
             try {
                 const stateData = JSON.parse(latestBmsData.state);
                 console.log("📜 [PARSED STATE DATA]:", stateData);
 
-                SOC = stateData.SOC || null;
+                SOC = stateData.SOC ?? null;
+                SYLA = stateData.SYLA ?? null;
+
+                console.log("🔋 [RAW SOC]:", SOC);
+                console.log("⚙️ [RAW SYLA]:", SYLA);
             } catch (error) {
                 console.error("❌ [ERROR] Error parsing state JSON:", error);
             }
@@ -42,18 +47,22 @@ const SocController = {
             const adjustedSOC = Math.max(0, Math.min(100, ((SOC - 10) * 100) / (100 - 10)));
             const formattedSOC = adjustedSOC.toFixed(2);
 
-            // ✅ Cache only if the data is from the last 10 minutes
+            // ✅ Cache if recent
             const now = new Date();
             const dataTimestamp = new Date(latestBmsData.timestamp);
             const diffMinutes = (now - dataTimestamp) / (1000 * 60);
             if (diffMinutes <= 10) {
-                cache.set(mac_id, formattedSOC, 1800); // Cache for 30 minutes
+                cache.set(mac_id, formattedSOC, 1800); // Cache SOC for 30 minutes
                 console.log(`✅ [CACHED] SOC for ${mac_id}: ${formattedSOC}`);
             } else {
                 console.log(`⚠️ [SKIPPED CACHE] Data is older than 10 minutes (${diffMinutes.toFixed(2)} mins)`);
             }
 
-            return res.status(200).json({ success: true, SOC: formattedSOC });
+            return res.status(200).json({
+                success: true,
+                SOC: formattedSOC,
+                SYLA: SYLA !== null ? SYLA : "Unavailable"
+            });
         } catch (error) {
             console.error("❌ [ERROR] Error fetching SOC:", error);
             return res.status(500).json({ success: false, message: "Internal Server Error", error });
